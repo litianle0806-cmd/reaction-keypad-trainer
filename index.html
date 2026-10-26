@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>反应力 × 小键盘 · 训练场</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>"/>
+<link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="logo">⚡ 反应力 × 小键盘 <span>训练场</span></div>
+    <nav class="tabs">
+      <button class="tab active" data-tab="reaction">🎯 反应力测试</button>
+      <button class="tab" data-tab="cps">🔥 连击测试</button>
+      <button class="tab" data-tab="keypad">⌨️ 小键盘练习</button>
+      <button class="tab" data-tab="stats">📊 我的记录</button>
+    </nav>
+  </header>
+
+  <!-- ============ 反应力测试 ============ -->
+  <section class="panel active" id="panel-reaction">
+    <div class="card rx-settings">
+      <div class="field">
+        <label>测试模式</label>
+        <div class="seg" id="rx-mode">
+          <button data-v="single">单次</button>
+          <button data-v="five" class="on">连续 5 次</button>
+          <button data-v="choice">选择反应</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>反应方式（可随时切换）</label>
+        <div class="seg" id="rx-input">
+          <button data-v="mouse" class="on">🖱️ 鼠标点击</button>
+          <button data-v="enter">⌨️ Enter 键</button>
+        </div>
+      </div>
+      <div class="rx-bests">
+        <span>单次最佳 <b id="rx-best-single">--</b></span>
+        <span>五连最佳 <b id="rx-best-five">--</b></span>
+        <span>选择最佳 <b id="rx-best-choice">--</b></span>
+      </div>
+    </div>
+
+    <div class="rx-area" id="rx-area">
+      <div class="rx-main">
+        <div class="rx-title" id="rx-title">点击开始</div>
+        <div class="rx-sub" id="rx-sub"></div>
+      </div>
+      <div class="rx-round-chips" id="rx-chips"></div>
+    </div>
+
+    <div class="card rx-result">
+      <div class="rres"><span class="k">平均反应</span><b id="rx-avg">--</b></div>
+      <div class="rres"><span class="k">评级</span><b id="rx-avg-rank">--</b></div>
+      <div class="rres"><span class="k">最快单轮</span><b id="rx-min">--</b></div>
+      <div class="rres"><span class="k">轮数</span><b id="rx-rounds">--</b></div>
+    </div>
+
+    <div class="rx-bottom">
+      <div class="card">
+        <h3>最近成绩趋势</h3>
+        <div class="rx-chart" id="rx-chart"></div>
+        <div class="rx-last" id="rx-last"></div>
+      </div>
+      <div class="card rx-tips">
+        <h3>基准参考</h3>
+        <ul>
+          <li>职业电竞选手视觉反应：约 <b>150–180ms</b></li>
+          <li>普通成年人：约 <b>220–270ms</b></li>
+          <li>同一人用鼠标通常比键盘慢 10–40ms，两种方式的分数建议分开比较</li>
+          <li>选择反应模式：🟩 绿色立刻反应，🟥 红色忍住别按，练「看对了再出手」</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 连击测试 ============ -->
+  <section class="panel" id="panel-cps">
+    <div class="card cps-settings">
+      <div class="field">
+        <label>测试时长</label>
+        <div class="seg" id="cps-dur">
+          <button data-v="1" class="on">1 秒</button>
+          <button data-v="3">3 秒</button>
+          <button data-v="5">5 秒</button>
+          <button data-v="10">10 秒</button>
+        </div>
+      </div>
+      <div class="cps-bests">
+        <span>1 秒最佳 <b id="cps-best-1">--</b></span>
+        <span>3 秒最佳 <b id="cps-best-3">--</b></span>
+        <span>5 秒最佳 <b id="cps-best-5">--</b></span>
+        <span>10 秒最佳 <b id="cps-best-10">--</b></span>
+      </div>
+    </div>
+
+    <div class="cps-area" id="cps-area">
+      <div class="cps-count" id="cps-count">0</div>
+      <div class="cps-title" id="cps-title">按 Enter 开始</div>
+      <div class="cps-sub" id="cps-sub">按住不放不算，每次都要真实按下并松开</div>
+      <div class="cps-bar-wrap hidden" id="cps-bar-wrap"><i id="cps-bar"></i></div>
+      <div class="cps-flash" id="cps-flash"></div>
+    </div>
+
+    <div class="card cps-result">
+      <div class="rres"><span class="k">每秒连击</span><b id="cps-cps">--</b></div>
+      <div class="rres"><span class="k">总次数</span><b id="cps-total">--</b></div>
+      <div class="rres"><span class="k">评级</span><b id="cps-rank">--</b></div>
+      <div class="rres"><span class="k">最短间隔</span><b id="cps-minint">--</b></div>
+    </div>
+
+    <div class="card cps-tips">
+      <h3>怎么打得更多</h3>
+      <ul>
+        <li><b>手指别抬太高</b>：抬得越低回弹越快，这是提升连击数最直接的一点</li>
+        <li><b>保持悬停待命</b>：手指离开键面，但不要绷紧，用手腕微发力而不是整条手臂</li>
+        <li><b>节奏优先于蛮力</b>：稳定的中速节奏，总次数通常高于前快后乱的打法</li>
+        <li><b>别按到底</b>：很多键盘触发行程很短，按到触发点就松，不必压到底</li>
+        <li>普通键盘约 6–9 次/秒，机械键盘熟手可到 10–14 次/秒</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ 小键盘练习 ============ -->
+  <section class="panel" id="panel-keypad">
+    <div class="kp-layout">
+      <div class="kp-main card">
+        <div class="kp-head">
+          <div class="kp-title">在线小键盘练习</div>
+          <div class="kp-timer">⏱ <span id="kp-clock">03:00</span></div>
+        </div>
+        <div class="kp-progress"><i id="kp-bar"></i></div>
+        <div class="kp-stage" id="kp-stage">
+          <div class="kp-idle">
+            <p>按 <kbd>Enter</kbd> 键或点击右侧 <b>START</b> 开始练习</p>
+            <p class="dim">用数字小键盘录入出现的数字串（主键盘数字排也可以）<br>错误无法回改，像真实录入考试一样，练完看综合评分</p>
+          </div>
+        </div>
+        <div class="kp-overlay hidden" id="kp-overlay"></div>
+
+        <div class="kp-settings-row">
+          <div class="field">
+            <label>每组位数</label>
+            <div class="seg" id="kp-len">
+              <button data-v="random" class="on">随机 6–20 位</button>
+              <button data-v="6">固定 6 位</button>
+              <button data-v="8">固定 8 位</button>
+              <button data-v="10">固定 10 位</button>
+              <button data-v="12">固定 12 位</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>练习时长</label>
+            <div class="seg" id="kp-dur">
+              <button data-v="60">1 分钟</button>
+              <button data-v="120">2 分钟</button>
+              <button data-v="180" class="on">3 分钟</button>
+              <button data-v="300">5 分钟</button>
+            </div>
+          </div>
+        </div>
+        <p class="dim kp-set-hint">★ 设置完成后按 <kbd>Enter</kbd> 或 START 开始（下一轮生效）</p>
+      </div>
+
+      <aside class="kp-side">
+        <button class="btn-start" id="kp-start">START ▶<span class="dim">（或按 Enter）</span></button>
+
+        <div class="card kp-stats">
+          <h3>实时统计</h3>
+          <div class="ks-grid">
+            <div class="ks"><span class="k">已录入</span><b id="kp-typed">0</b></div>
+            <div class="ks"><span class="k">正确 / 错误</span><b><span id="kp-ok">0</span><i class="sep">/</i><span id="kp-bad">0</span></b></div>
+            <div class="ks"><span class="k">完成组 ✓/✗</span><b><span id="kp-gok">0</span><i class="sep">/</i><span id="kp-gbad">0</span></b></div>
+            <div class="ks"><span class="k">速度（键/分）</span><b id="kp-speed">0</b></div>
+            <div class="ks"><span class="k">KPH</span><b id="kp-kph">0</b></div>
+            <div class="ks"><span class="k">正确率</span><b id="kp-acc">100%</b></div>
+            <div class="ks"><span class="k">综合评分</span><b id="kp-score">0</b></div>
+          </div>
+        </div>
+
+        <div class="card kp-best">
+          <h3>最佳记录</h3>
+          <div class="ks-row">综合评分 <b id="kp-best">--</b></div>
+          <div class="ks-row">速度 <b id="kp-best-speed">--</b> 键/分</div>
+        </div>
+
+        <div class="card kp-hist">
+          <h3>最近练习 <button class="btn-ghost" id="kp-hist-clear">清空</button></h3>
+          <div class="kp-hist-list" id="kp-hist-list"></div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ============ 我的记录 ============ -->
+  <section class="panel" id="panel-stats">
+    <div class="card">
+      <h3>🔥 连击最佳 <button class="btn-ghost" id="st-clear-cps">清空</button></h3>
+      <div class="cps-bests" id="st-cps-bests"></div>
+    </div>
+    <div class="st-grid">
+      <div class="card">
+        <h3>🎯 反应力记录 <button class="btn-ghost" id="st-clear-rx">清空</button></h3>
+        <table>
+          <thead><tr><th>时间</th><th>模式</th><th>方式</th><th>平均</th><th>最快</th><th>评级</th></tr></thead>
+          <tbody id="st-rx-body"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3>⌨️ 小键盘记录 <button class="btn-ghost" id="st-clear-kp">清空</button></h3>
+        <table>
+          <thead><tr><th>时间</th><th>时长</th><th>键/分</th><th>KPH</th><th>正确率</th><th>评分</th><th>评级</th></tr></thead>
+          <tbody id="st-kp-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    灵感来源：<a href="https://www.fytester.com/" target="_blank" rel="noopener">FYTester 反应测试</a> ·
+    <a href="https://yoqo.github.io/game/keypad/" target="_blank" rel="noopener">在线小键盘练习</a> ｜
+    所有数据仅保存在本地浏览器（localStorage），不上传
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="js/app.js"></script>
+</body>
+</html>
