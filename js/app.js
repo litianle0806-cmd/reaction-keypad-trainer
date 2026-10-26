@@ -78,7 +78,7 @@ function switchTab(name) {
   if (name !== 'reaction') RX.abort();
   if (name !== 'cps') CPS.abort();
   if (name !== 'keypad') KP.pause();
-  if (name === 'stats') renderStatsTab();
+  if (name === 'stats') { renderStatsTab(); if (window.__INS) window.__INS.render(); }
 }
 
 /* ================= 反应力测试 ================= */
@@ -342,6 +342,12 @@ const CPS = (() => {
     const prev = best[key] || 0;
     const isRec = presses > prev;
     if (isRec) { best[key] = presses; store.set(KEY.best, best); }
+
+    // 连击也存历史，供数据洞察使用
+    let hist = store.get('cpsHistory', []);
+    hist.unshift({ ts: Date.now(), dur, presses, cps, minInt, rating: r.tag });
+    hist = hist.slice(0, 40);
+    store.set('cpsHistory', hist);
     renderBest(); renderStatsTab();
 
     show('done', presses,
@@ -421,15 +427,35 @@ const KP = (() => {
     no.className = 'gno';
     no.textContent = `第 ${cur + 1} 组 · ${g.digits.length} 位`;
     wrap.appendChild(no);
+    const row = document.createElement('div');
+    row.className = 'kp-digits';
     g.digits.forEach((d, j) => {
       const c = document.createElement('i');
       c.textContent = d;
+      if (d === 0) c.classList.add('zero');
       if (g.marks[j]) c.classList.add(g.marks[j]);
       if (j === g.pos) c.classList.add('cursor');
-      wrap.appendChild(c);
+      row.appendChild(c);
     });
+    wrap.appendChild(row);
     stageEl.innerHTML = '';
     stageEl.appendChild(wrap);
+    fitDigits(row);
+  }
+
+  // 按容器实际宽度自动缩放，保证长数字串也排成一行
+  function fitDigits(row) {
+    const digits = [...row.querySelectorAll('i')];
+    if (!digits.length) return;
+    const base = window.innerWidth <= 880 ? 52 : 88;
+    const avail = stageEl.clientWidth - 48;
+    let size = base;
+    row.style.fontSize = size + 'px';
+    let guard = 0;
+    while (row.scrollWidth > avail && size > 24 && guard++ < 50) {
+      size -= 2;
+      row.style.fontSize = size + 'px';
+    }
   }
 
   const elapsedMs = () => accMs + (startTs ? performance.now() - startTs : 0);
@@ -645,11 +671,13 @@ function renderStatsTab() {
   }).join('') : '<tr><td colspan="7" class="empty">暂无记录</td></tr>';
 
   const cpsBest = store.get('cpsBest', {});
-  const parts = [1, 3, 5, 10].map(d => {
-    const v = cpsBest[String(d)];
-    return `<span>${d} 秒 <b>${v ? v + ' 次' : '--'}</b></span>`;
-  });
-  $('#st-cps-bests').innerHTML = parts.join('');
+  const el = $('#st-cps-bests');
+  if (el) {
+    el.innerHTML = [1, 3, 5, 10].map(d => {
+      const v = cpsBest[String(d)];
+      return `<span>${d} 秒 <b>${v ? v + ' 次' : '--'}</b></span>`;
+    }).join('');
+  }
 }
 
 $('#st-clear-rx').addEventListener('click', () => {
@@ -664,8 +692,203 @@ $('#st-clear-kp').addEventListener('click', () => {
 });
 $('#st-clear-cps').addEventListener('click', () => {
   if (!confirm('确定清空连击最佳记录？')) return;
-  localStorage.removeItem('cpsBest');
+  localStorage.removeItem('cpsBest'); localStorage.removeItem('cpsHistory');
   location.reload();
 });
+
+/* ================= 数据洞察 ================= */
+const INS = (() => {
+  let view = 'rx';
+
+  // 各视图的取值 / 单位 / 好坏方向 / 格式化
+  const CFG = {
+    rx: {
+      label: '反应力', unit: 'ms', lowerBetter: true,
+      name: '平均反应',
+      get: () => store.get('rxHistory', []).map(h => ({
+        ts: h.ts, v: h.avg, min: h.min, mode: MODE_NAME[h.mode],
+        input: INPUT_NAME[h.input], tag: rxRating(h.avg).tag, color: rxRating(h.avg).color,
+        detail: `${MODE_NAME[h.mode]}·${INPUT_NAME[h.input]}`
+      }))
+    },
+    cps: {
+      label: '连击', unit: '次/秒', lowerBetter: false,
+      name: '每秒连击',
+      get: () => store.get('cpsHistory', []).map(h => ({
+        ts: h.ts, v: h.cps, presses: h.presses, dur: h.dur,
+        tag: h.rating, color: cpsRating(h.cps).color,
+        detail: `${h.dur} 秒 · ${h.presses} 次`
+      }))
+    },
+    kp: {
+      label: '小键盘', unit: '分', lowerBetter: false,
+      name: '综合评分',
+      get: () => store.get('kpHistory', []).map(h => ({
+        ts: h.ts, v: h.score, kpm: h.kpm, acc: h.acc,
+        tag: kpRating(h.score).tag, color: kpRating(h.score).color,
+        detail: `${h.kpm} 键/分 · ${h.acc}%`
+      }))
+    }
+  };
+
+  // 按时间正序，取最近 20 条
+  function series(cfg) {
+    return cfg.get().slice(0, 20).reverse();
+  }
+
+  function stats(vals) {
+    const n = vals.length;
+    if (!n) return null;
+    const mean = vals.reduce((a, b) => a + b, 0) / n;
+    if (n === 1) return { n, mean, min: vals[0], max: vals[0], sd: 0, cv: 0 };
+    const sd = Math.sqrt(vals.reduce((a, v) => a + (v - mean) ** 2, 0) / n);
+    return { n, mean, min: Math.min(...vals), max: Math.max(...vals), sd, cv: mean ? sd / mean : 0 };
+  }
+
+  // 波动越小越稳：用变异系数换算成 0-100 的稳定度
+  const stableScore = cv => Math.round(Math.max(0, Math.min(100, (1 - cv / 0.35) * 100)));
+
+  function renderMetrics(cfg, rows, st) {
+    const box = $('#ins-metrics');
+    if (!rows.length) { box.innerHTML = ''; return; }
+    const unit = `<span class="u">${cfg.unit}</span>`;
+    const best = cfg.lowerBetter ? st.min : st.max;
+    // 与上一次相比
+    let deltaHtml = '<span class="sub">仅一次记录</span>';
+    if (rows.length >= 2) {
+      const cur = rows[rows.length - 1].v, prev = rows[rows.length - 2].v;
+      const diff = cur - prev;
+      const good = cfg.lowerBetter ? diff < 0 : diff > 0;
+      const sign = diff > 0 ? '+' : '';
+      deltaHtml = `<span class="sub" style="color:${diff === 0 ? 'var(--dim)' : good ? 'var(--ok)' : 'var(--bad)'}">
+        较上次 ${sign}${(+diff.toFixed(2))}${cfg.unit}</span>`;
+    }
+    const worst = cfg.lowerBetter ? st.max : st.min;
+    const ss = stableScore(st.cv);
+
+    box.innerHTML = `
+      <div class="ins-metric"><span class="k">最佳成绩</span><b style="color:var(--gold)">${(+best.toFixed(2))}${unit}</b>
+        <span class="sub">共 ${st.n} 次测试</span></div>
+      <div class="ins-metric"><span class="k">平均值</span><b>${(+st.mean.toFixed(2))}${unit}</b>${deltaHtml}</div>
+      <div class="ins-metric"><span class="k">${cfg.lowerBetter ? '最慢' : '最低'}</span><b style="color:var(--warn)">${(+worst.toFixed(2))}${unit}</b>
+        <span class="sub">波动区间 ${(+(st.max - st.min).toFixed(2))}${cfg.unit}</span></div>
+      <div class="ins-metric"><span class="k">发挥稳定度</span><b style="color:${ss >= 75 ? 'var(--ok)' : ss >= 45 ? 'var(--acc)' : 'var(--bad)'}">${ss}<span class="u">/100</span></b>
+        <span class="sub">变异系数 ${(st.cv * 100).toFixed(1)}%</span></div>
+      <div class="ins-metric"><span class="k">达标水平</span><b>${rows.filter(r => cfg.lowerBetter ? r.v <= st.mean : r.v >= st.mean).length}<span class="u">/${st.n}</span></b>
+        <span class="sub">不低于自身均值</span></div>`;
+  }
+
+  function renderTrend(cfg, rows, st) {
+    const box = $('#ins-trend'), axis = $('#ins-axis');
+    $('#ins-trend-title').textContent = `${cfg.name}趋势（最近 ${rows.length} 次）`;
+    if (!rows.length) {
+      box.innerHTML = '<div class="empty">暂无数据</div>';
+      axis.innerHTML = '';
+      return;
+    }
+    const vals = rows.map(r => r.v);
+    const lo = Math.min(...vals), hi = Math.max(...vals);
+    const span = hi - lo || Math.abs(hi) || 1;
+    // 留出上下边距，别让柱子顶满或贴底
+    box.innerHTML = rows.map((r, i) => {
+      const pct = 12 + ((r.v - lo) / span) * 82;
+      return `<div class="col" title="${fmtDate(r.ts)} ${r.detail} → ${r.v}${cfg.unit}">
+        <i style="height:${pct}%;background:${r.color}"></i>
+      </div>`;
+    }).join('');
+    // 数值标注只显示最高/最低，避免拥挤
+    const maxIdx = vals.indexOf(hi), minIdx = vals.indexOf(lo);
+    const cols = [...box.children];
+    if (cols[maxIdx]) cols[maxIdx].insertAdjacentHTML('beforeend', `<span style="top:-14px">${(+hi.toFixed(1))}</span>`);
+    if (cols[minIdx] && minIdx !== maxIdx) cols[minIdx].insertAdjacentHTML('beforeend', `<span>${(+lo.toFixed(1))}</span>`);
+
+    axis.innerHTML = rows.map((r, i) => {
+      // 只标首、中、尾，避免挤在一起
+      const label = (i === 0 || i === rows.length - 1 || (rows.length > 4 && i === Math.floor(rows.length / 2)))
+        ? fmtDate(r.ts).split(' ')[0] : '';
+      return `<span>${label}</span>`;
+    }).join('');
+  }
+
+  function renderStability(cfg, st) {
+    const box = $('#ins-stability');
+    if (!st) { box.innerHTML = '<p class="stab-empty">暂无数据</p>'; return; }
+    const ss = stableScore(st.cv);
+    const sdRatio = Math.min(100, (st.cv / 0.35) * 100);
+    // 相对最佳成绩的差距
+    const best = cfg.lowerBetter ? st.min : st.max;
+    const gap = cfg.lowerBetter ? (st.mean - best) / best : (best - st.mean) / best;
+    const gapPct = Math.min(100, Math.max(0, gap * 100));
+
+    const tone = cfg.lowerBetter
+      ? (gap < 0.1 ? '你的平均值很接近最好水平，状态很稳。'
+        : gap < 0.25 ? `平均比最好成绩慢 ${(gap * 100).toFixed(0)}%，还有收窄空间。`
+          : `平均比最好成绩慢 ${(gap * 100).toFixed(0)}%，说明偶发的慢记录拉低了整体。`)
+      : (gap < 0.1 ? '你的平均值很接近最好水平，状态很稳。'
+        : gap < 0.25 ? `平均比最好成绩低 ${(gap * 100).toFixed(0)}%，还有提升空间。`
+          : `平均比最好成绩低 ${(gap * 100).toFixed(0)}%，说明发挥不够稳定。`);
+
+    box.innerHTML = `
+      <div class="stab-row">
+        <div class="k"><span>稳定度</span><b>${ss} / 100</b></div>
+        <div class="stab-bar"><i style="width:${ss}%;background:${ss >= 75 ? 'var(--ok)' : ss >= 45 ? 'var(--acc)' : 'var(--bad)'}"></i></div>
+      </div>
+      <div class="stab-row">
+        <div class="k"><span>离散程度（越小越稳）</span><b>${(st.cv * 100).toFixed(1)}%</b></div>
+        <div class="stab-bar"><i style="width:${Math.max(3, 100 - sdRatio)}%;background:linear-gradient(90deg,var(--acc),var(--acc2))"></i></div>
+      </div>
+      <div class="stab-row">
+        <div class="k"><span>平均值距最佳</span><b>${(gap * 100).toFixed(1)}%</b></div>
+        <div class="stab-bar"><i style="width:${Math.max(3, 100 - gapPct)}%;background:var(--gold)"></i></div>
+      </div>
+      <p class="stab-note">${tone}<br>
+      最佳 ${(+best.toFixed(2))}${cfg.unit} · 平均 ${(+st.mean.toFixed(2))}${cfg.unit} · 波动 ${(+(st.sd).toFixed(2))}${cfg.unit}</p>`;
+  }
+
+  function renderRecent(cfg, rows) {
+    const box = $('#ins-recent');
+    if (!rows.length) { box.innerHTML = '<p class="empty">暂无记录，先去测几次</p>'; return; }
+    const best = cfg.lowerBetter
+      ? Math.min(...rows.map(r => r.v)) : Math.max(...rows.map(r => r.v));
+    box.innerHTML = rows.slice(-5).reverse().map(r => `
+      <div class="rec-row${r.v === best ? ' best-row' : ''}">
+        <span class="t">${fmtDate(r.ts)}</span>
+        <span class="v">${r.detail}</span>
+        <span class="v" style="color:${r.color};font-weight:700">${r.v.toFixed(2)}<span class="u" style="font-size:10px;color:var(--dim)"> ${cfg.unit}</span></span>
+        <span class="rk" style="color:${r.color}">${r.tag}</span>
+      </div>`).join('');
+  }
+
+  function render() {
+    const cfg = CFG[view];
+    const rows = series(cfg);
+    const st = stats(rows.map(r => r.v));
+    const hint = $('#ins-hint');
+
+    const total = cfg.get().length;
+    hint.textContent = total === 0
+      ? `${cfg.label}还没有记录，先去测几次就能看到趋势`
+      : total === 1
+        ? `目前只有 1 次${cfg.label}记录，再测几次才能看出趋势和波动`
+        : `${cfg.label}共 ${total} 次记录，下方显示最近 ${rows.length} 次`;
+
+    renderMetrics(cfg, rows, st);
+    renderTrend(cfg, rows, st);
+    renderStability(cfg, st);
+    renderRecent(cfg, rows);
+  }
+
+  $('#ins-switch').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    $$('button', $('#ins-switch')).forEach(x => x.classList.toggle('on', x === b));
+    view = b.dataset.v;
+    render();
+  });
+
+  return { render };
+})();
+window.__INS = INS;
+INS.render();
 
 renderStatsTab();

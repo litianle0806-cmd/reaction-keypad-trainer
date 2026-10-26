@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>反应力 × 小键盘 · 训练场</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>"/>
-<link rel="stylesheet" href="css/style.css"/>
+<link rel="stylesheet" href="css/style.css?v=3"/>
 </head>
 <body>
 <div class="wrap">
@@ -196,12 +196,42 @@
     </div>
   </section>
 
-  <!-- ============ 我的记录 ============ -->
+  <!-- ============ 我的记录 / 数据洞察 ============ -->
   <section class="panel" id="panel-stats">
+    <div class="card ins-head">
+      <h3>📈 数据洞察</h3>
+      <div class="ins-switch" id="ins-switch">
+        <button data-v="rx" class="on">🎯 反应力</button>
+        <button data-v="cps">🔥 连击</button>
+        <button data-v="kp">⌨️ 小键盘</button>
+      </div>
+      <p class="dim" id="ins-hint">完成更多测试后，这里会显示趋势和波动分析</p>
+    </div>
+
+    <div class="ins-metrics" id="ins-metrics"></div>
+
+    <div class="ins-charts">
+      <div class="card">
+        <h3 id="ins-trend-title">成绩趋势</h3>
+        <div class="ins-trend" id="ins-trend"></div>
+        <div class="ins-axis" id="ins-axis"></div>
+      </div>
+      <div class="card">
+        <h3>发挥稳定性</h3>
+        <div class="ins-stability" id="ins-stability"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>最近 5 次 <span class="dim" style="font-weight:400">（最新在前）</span></h3>
+      <div class="ins-recent" id="ins-recent"></div>
+    </div>
+
     <div class="card">
       <h3>🔥 连击最佳 <button class="btn-ghost" id="st-clear-cps">清空</button></h3>
       <div class="cps-bests" id="st-cps-bests"></div>
     </div>
+
     <div class="st-grid">
       <div class="card">
         <h3>🎯 反应力记录 <button class="btn-ghost" id="st-clear-rx">清空</button></h3>
@@ -228,6 +258,6 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<script src="js/app.js"></script>
+<script src="js/app.js?v=3"></script>
 </body>
 </html>

@@ -169,30 +169,43 @@ a:hover { text-decoration: underline; }
 
 /* 只显示当前这一组，整行大字号连续排列 */
 .kp-stage {
-  min-height: 300px; display: flex; align-items: center; justify-content: center;
-  padding: 10px 4px;
+  min-height: 260px; display: flex; align-items: center; justify-content: center;
+  padding: 10px 20px;
+  background: #f7f8fb; border-radius: 12px; margin: 0 2px;
 }
 .kp-current {
-  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center;
-  gap: 0 6px;
-  font-family: "SF Mono", "Menlo", "Consolas", "DejaVu Sans Mono", "Courier New", monospace;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; max-width: 100%;
+  font-family: "Courier New", Courier, monospace;
 }
 .kp-current .gno {
-  width: 100%; text-align: center; font-family: inherit; font-size: 14px; color: var(--dim);
-  font-weight: 600; letter-spacing: 0; margin-bottom: 10px;
+  font-family: -apple-system, "PingFang SC", sans-serif;
+  font-size: 13px; color: #8c93a8; font-weight: 500; letter-spacing: 1px;
 }
+.kp-digits { display: flex; align-items: baseline; justify-content: center; gap: 0 2px; }
 .kp-current i {
-  font-style: normal;
-  font-variant-numeric: tabular-nums slashed-zero;
-  font-feature-settings: "zero" 1, "tnum" 1;
-  font-size: 62px; font-weight: 700; line-height: 1.15; letter-spacing: 2px;
-  color: #eef2ff; transition: color .1s;
+  position: relative;
+  font-style: normal; font-weight: 700;
+  font-size: 1em; line-height: 1.05; letter-spacing: 1px;
+  color: #1f2430; transition: color .1s;
 }
-.kp-current i.ok { color: var(--ok); }
-.kp-current i.bad { color: var(--bad); text-decoration: line-through; opacity: .8; }
+/* 给 0 手工画一道斜杠，任何字体下都能和 8 区分 */
+.kp-current i.zero::after {
+  content: ""; position: absolute; left: 50%; top: 47%;
+  width: 1.5px; height: 58%; transform: translate(-50%, -50%) rotate(32deg);
+  background: currentColor; border-radius: 1px;
+}
+.kp-current i.ok { color: #0a8f52; }
+.kp-current i.bad { color: #d92b45; text-decoration: line-through; }
 .kp-current i.cursor {
-  color: var(--acc); border-bottom: 4px solid var(--acc);
-  animation: kpblink 1s infinite;
+  background: #e3e9fb; box-shadow: inset 0 -5px 0 #3b6bd6;
+}
+@keyframes kpblink { 50% { background: transparent; box-shadow: none; } }
+
+/* 位数多时自动缩小，避免一行放不下而折行 */
+.kp-current { flex-wrap: nowrap; font-size: 88px; }
+@media (max-width: 880px) {
+  .kp-current { font-size: 52px; }
 }
 @keyframes kpblink { 50% { border-bottom-color: transparent; } }
 
@@ -252,6 +265,69 @@ a:hover { text-decoration: underline; }
 .kh-time { color: var(--dim); font-size: 11px; }
 .kh-score { font-weight: 800; font-size: 15px; text-align: right; }
 .kh-meta { color: #b9c2dd; text-align: right; font-size: 11px; }
+
+/* ---------- 数据洞察 ---------- */
+.ins-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.ins-head h3 { margin: 0; }
+.ins-head .dim { margin: 0; flex-basis: 100%; }
+.ins-switch { display: flex; gap: 5px; background: #10152a; border: 1px solid var(--line); padding: 4px; border-radius: 999px; }
+.ins-switch button {
+  border: none; background: transparent; color: var(--dim); font-size: 13px; font-weight: 600;
+  padding: 6px 14px; border-radius: 999px; cursor: pointer; transition: .15s;
+}
+.ins-switch button:hover { color: var(--txt); }
+.ins-switch button.on { background: linear-gradient(135deg, var(--acc), var(--acc2)); color: #fff; }
+
+.ins-metrics { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 14px; }
+.ins-metric {
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  padding: 12px 14px;
+}
+.ins-metric .k { display: block; font-size: 11px; color: var(--dim); margin-bottom: 5px; }
+.ins-metric b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.ins-metric b .u { font-size: 12px; font-weight: 500; color: var(--dim); margin-left: 2px; }
+.ins-metric .sub { display: block; font-size: 11px; color: var(--dim); margin-top: 3px; }
+
+.ins-charts { display: grid; grid-template-columns: 1.6fr 1fr; gap: 14px; }
+.ins-charts .card { margin-bottom: 14px; }
+
+.ins-trend {
+  display: flex; align-items: flex-end; gap: 5px; height: 150px;
+  background: #10152a; border-radius: 10px; padding: 10px 10px 0;
+  border-bottom: 1px solid #2a3457;
+}
+.ins-trend .col { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; position: relative; }
+.ins-trend .col i {
+  display: block; width: 100%; max-width: 34px; border-radius: 3px 3px 0 0;
+  transition: filter .15s;
+}
+.ins-trend .col:hover i { filter: brightness(1.25); }
+.ins-trend .col span {
+  position: absolute; top: -2px; font-size: 10px; color: var(--dim);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.ins-trend .empty { align-self: center; margin: 0 auto; color: var(--dim); font-size: 13px; }
+.ins-axis { display: flex; gap: 5px; padding: 6px 10px 0; }
+.ins-axis span { flex: 1; text-align: center; font-size: 10px; color: #5f6a8c; }
+
+.ins-stability { display: flex; flex-direction: column; gap: 14px; }
+.stab-row .k { display: flex; justify-content: space-between; font-size: 12px; color: var(--dim); margin-bottom: 6px; }
+.stab-row .k b { color: var(--txt); font-size: 12px; }
+.stab-bar { height: 8px; background: #10152a; border-radius: 4px; overflow: hidden; }
+.stab-bar i { display: block; height: 100%; border-radius: 4px; transition: width .4s; }
+.stab-note { font-size: 12px; color: #b9c2dd; line-height: 1.7; margin: 0; padding-top: 4px; border-top: 1px solid var(--line); }
+.stab-empty { color: var(--dim); font-size: 13px; margin: 0; }
+
+.ins-recent { display: flex; flex-direction: column; gap: 7px; }
+.rec-row {
+  display: grid; grid-template-columns: 80px 1fr auto auto; gap: 10px; align-items: center;
+  font-size: 13px; padding: 8px 10px; background: #10152a; border-radius: 9px;
+}
+.rec-row .t { color: var(--dim); font-size: 11px; }
+.rec-row .v { font-variant-numeric: tabular-nums; }
+.rec-row .rk { font-size: 12px; font-weight: 700; }
+.rec-row.best-row { border: 1px solid rgba(255, 209, 102, .35); background: rgba(255, 209, 102, .06); }
+.ins-recent .empty { color: var(--dim); font-size: 13px; margin: 0; padding: 8px 0; }
 
 /* ---------- 记录页 ---------- */
 .st-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
